@@ -17,6 +17,9 @@ import subprocess
 import socket
 import yaml
 import re
+from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
+from pathlib import Path
 
 PROJECTS_ROOT = 'student_projects'
 BACKEND_PORT_START = 8100
@@ -285,3 +288,42 @@ def download_archive(request, project_id):
         raise Http404('Архив не найден')
     except Exception:
         raise Http404('Ошибка при скачивании архива')
+
+
+@csrf_exempt
+def manage_container(request, project_id):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            project = ProjectUpload.objects.get(id=project_id)
+            project_dir = Path('student_projects') / str(project.id)
+            if action == 'start':
+                # Запуск контейнеров
+                result = subprocess.run(['docker', 'compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
+                if result.returncode == 0:
+                    project.status = 'running'
+                else:
+                    project.status = 'error'
+                project.save()
+            elif action == 'stop':
+                # Остановка контейнеров
+                result = subprocess.run(['docker', 'compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+                if result.returncode == 0:
+                    project.status = 'stopped'
+                else:
+                    project.status = 'error'
+                project.save()
+            elif action == 'delete':
+                # Остановка и удаление контейнеров + очистка полей
+                subprocess.run(['docker', 'compose', 'down', '--volumes'], cwd=project_dir)
+                project.status = 'uploaded'
+                project.container_id_backend = None
+                project.container_id_frontend = None
+                project.backend_port = None
+                project.frontend_port = None
+                project.backend_url = None
+                project.frontend_url = None
+                project.save()
+        except ProjectUpload.DoesNotExist:
+            pass
+    return redirect(reverse('all_projects'))

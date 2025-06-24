@@ -26,6 +26,8 @@
             <th>Frontend</th>
             <th>Backend</th>
             <th>Архив</th>
+            <th>Статус</th>
+            <th>Управление</th>
         </tr>
     </thead>
     <tbody>
@@ -49,9 +51,32 @@
                     <a href="{% url 'download_archive' project.id %}">Скачать</a>
                 {% else %}-{% endif %}
             </td>
+            <td>
+                {% if project.status == 'running' %}
+                    <span style="background:#d4f8d4;color:#218838;padding:3px 10px;border-radius:12px;font-size:13px;">Запущен</span>
+                {% elif project.status == 'stopped' %}
+                    <span style="background:#ffe6cc;color:#b36b00;padding:3px 10px;border-radius:12px;font-size:13px;">Остановлен</span>
+                {% elif project.status == 'error' %}
+                    <span style="background:#ffd6d6;color:#b30000;padding:3px 10px;border-radius:12px;font-size:13px;">Ошибка</span>
+                {% else %}
+                    <span style="background:#e2e3e5;color:#333;padding:3px 10px;border-radius:12px;font-size:13px;">{{ project.status|default:'-' }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <form method="post" action="{% url 'manage_container' project.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    {% if project.status == 'stopped' or project.status == 'uploaded' %}
+                        <button type="submit" name="action" value="start" style="background:#28a745;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;">Запустить</button>
+                    {% endif %}
+                    {% if project.status == 'running' %}
+                        <button type="submit" name="action" value="stop" style="background:#ffc107;color:#333;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;">Остановить</button>
+                    {% endif %}
+                    <button type="submit" name="action" value="delete" style="background:#dc3545;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;">Удалить</button>
+                </form>
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" style="text-align:center;">Нет проектов</td></tr>
+        <tr><td colspan="8" style="text-align:center;">Нет проектов</td></tr>
         {% endfor %}
     </tbody>
 </table>
