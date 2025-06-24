@@ -323,6 +323,34 @@ def manage_container(request, project_id):
                 result = subprocess.run(['docker-compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
                 if result.returncode == 0:
                     project.status = 'running'
+                    # Обновляем ссылки после успешного запуска
+                    try:
+                        # Читаем docker-compose.yml для получения портов
+                        compose_path = project_dir / 'docker-compose.yml'
+                        if compose_path.exists():
+                            with open(compose_path, 'r') as f:
+                                compose_data = yaml.safe_load(f)
+                            
+                            # Извлекаем порты из docker-compose.yml
+                            backend_ports = compose_data.get('services', {}).get('backend', {}).get('ports', [])
+                            frontend_ports = compose_data.get('services', {}).get('frontend', {}).get('ports', [])
+                            
+                            if backend_ports and frontend_ports:
+                                # Парсим порты (формат "8101:8000")
+                                backend_port = int(backend_ports[0].split(':')[0])
+                                frontend_port = int(frontend_ports[0].split(':')[0])
+                                
+                                # Получаем внешний IP
+                                external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
+                                
+                                # Обновляем поля проекта
+                                project.backend_port = backend_port
+                                project.frontend_port = frontend_port
+                                project.backend_url = f'http://{external_ip}:{backend_port}/api/'
+                                project.frontend_url = f'http://{external_ip}:{frontend_port}/'
+                    except Exception as e:
+                        # Если не удалось получить порты, оставляем как есть
+                        pass
                 else:
                     project.status = 'error'
                 project.save()
