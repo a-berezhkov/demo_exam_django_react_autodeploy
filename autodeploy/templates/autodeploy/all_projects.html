@@ -25,6 +25,7 @@
             <th>Дата/время загрузки</th>
             <th>Frontend</th>
             <th>Backend</th>
+            <th>Архив</th>
         </tr>
     </thead>
     <tbody>
@@ -43,9 +44,14 @@
                     <a href="{{ project.backend_url }}" target="_blank">Backend</a>
                 {% else %}-{% endif %}
             </td>
+            <td>
+                {% if project.archive %}
+                    <a href="{% url 'download_archive' project.id %}">Скачать</a>
+                {% else %}-{% endif %}
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" style="text-align:center;">Нет проектов</td></tr>
+        <tr><td colspan="6" style="text-align:center;">Нет проектов</td></tr>
         {% endfor %}
     </tbody>
 </table>

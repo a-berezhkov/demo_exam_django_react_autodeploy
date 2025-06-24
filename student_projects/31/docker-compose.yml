@@ -1,0 +1,23 @@
+networks:
+  default:
+    driver: bridge
+services:
+  backend:
+    build: ./backend
+    command: python manage.py runserver 0.0.0.0:8000
+    networks:
+      default:
+        aliases:
+        - localhost
+    ports:
+    - 8103:8000
+    working_dir: /app
+  frontend:
+    build: ./frontend
+    command: npx vite --host
+    environment:
+    - VITE_URL=http://localhost:8103/api/
+    ports:
+    - 3103:5173
+    working_dir: /app
+version: '3'

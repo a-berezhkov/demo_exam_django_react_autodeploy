@@ -4,6 +4,9 @@ from .models import Student, ProjectUpload, Group
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import HttpResponse, Http404
+from django.conf import settings
+import mimetypes
 
 import os
 import tempfile
@@ -224,7 +227,14 @@ def upload_project(request):
                         if found:
                             try:
                                 setup_and_run_containers(project, tmpdir)
-                                messages.success(request, 'Контейнеры успешно запущены!')
+                                # Показываем ссылки после успешного запуска
+                                return render(request, 'autodeploy/upload.html', {
+                                    'form': ProjectUploadForm(),
+                                    'messages': messages.get_messages(request),
+                                    'frontend_url': project.frontend_url,
+                                    'backend_url': project.backend_url,
+                                    'project': project,
+                                })
                             except Exception as e:
                                 project.status = 'error'
                                 project.save()
@@ -259,3 +269,19 @@ def all_projects(request):
         'fio_query': fio_query,
         'group_id': group_id,
     })
+
+
+def download_archive(request, project_id):
+    try:
+        project = ProjectUpload.objects.get(id=project_id)
+        archive_path = project.archive.path
+        archive_name = project.archive.name.split('/')[-1]
+        with open(archive_path, 'rb') as f:
+            mime_type, _ = mimetypes.guess_type(archive_path)
+            response = HttpResponse(f.read(), content_type=mime_type or 'application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{archive_name}"'
+            return response
+    except ProjectUpload.DoesNotExist:
+        raise Http404('Архив не найден')
+    except Exception:
+        raise Http404('Ошибка при скачивании архива')

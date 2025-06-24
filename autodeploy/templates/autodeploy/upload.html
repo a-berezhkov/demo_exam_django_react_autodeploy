@@ -113,6 +113,20 @@
         </div>
         <button type="submit">Загрузить</button>
     </form>
+    {% if frontend_url or backend_url %}
+        <div style="background: #e6ffe6; border: 1px solid #b2e6b2; padding: 16px; border-radius: 6px; margin-bottom: 18px;">
+            <strong>Проект успешно загружен и запущен!</strong><br>
+            {% if frontend_url %}
+                <a href="{{ frontend_url }}" target="_blank" style="color:#007bff;">Ссылка на Frontend</a><br>
+            {% endif %}
+            {% if backend_url %}
+                <a href="{{ backend_url }}" target="_blank" style="color:#007bff;">Ссылка на Backend</a><br>
+            {% endif %}
+            {% if project and project.archive %}
+                <a href="{% url 'download_archive' project.id %}" style="color:#007bff;">Скачать архив</a>
+            {% endif %}
+        </div>
+    {% endif %}
 </div>
 </body>
 </html> 
