@@ -181,13 +181,13 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     # Генерируем docker-compose.yml
     generate_docker_compose(project_dir, backend_port, frontend_port)
     # Запускаем контейнеры
-    result = subprocess.run(['docker', 'compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
+    result = subprocess.run(['docker-compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f'Ошибка запуска контейнеров: {result.stderr}')
     # Получаем id контейнеров
-    ps = subprocess.run(['docker', 'compose', 'ps', '-q', 'backend'], cwd=project_dir, capture_output=True, text=True)
+    ps = subprocess.run(['docker-compose', 'ps', '-q', 'backend'], cwd=project_dir, capture_output=True, text=True)
     backend_id = ps.stdout.strip()
-    ps = subprocess.run(['docker', 'compose', 'ps', '-q', 'frontend'], cwd=project_dir, capture_output=True, text=True)
+    ps = subprocess.run(['docker-compose', 'ps', '-q', 'frontend'], cwd=project_dir, capture_output=True, text=True)
     frontend_id = ps.stdout.strip()
     # Сохраняем в БД
     project.backend_port = backend_port
@@ -299,7 +299,7 @@ def manage_container(request, project_id):
             project_dir = Path('student_projects') / str(project.id)
             if action == 'start':
                 # Запуск контейнеров
-                result = subprocess.run(['docker', 'compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
+                result = subprocess.run(['docker-compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
                 if result.returncode == 0:
                     project.status = 'running'
                 else:
@@ -307,7 +307,7 @@ def manage_container(request, project_id):
                 project.save()
             elif action == 'stop':
                 # Остановка контейнеров
-                result = subprocess.run(['docker', 'compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+                result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
                 if result.returncode == 0:
                     project.status = 'stopped'
                 else:
@@ -315,7 +315,7 @@ def manage_container(request, project_id):
                 project.save()
             elif action == 'delete':
                 # Остановка и удаление контейнеров + очистка полей
-                subprocess.run(['docker', 'compose', 'down', '--volumes'], cwd=project_dir)
+                subprocess.run(['docker-compose', 'down', '--volumes'], cwd=project_dir)
                 project.status = 'uploaded'
                 project.container_id_backend = None
                 project.container_id_frontend = None
