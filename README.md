@@ -16,6 +16,12 @@
     - [Клонирование и запуск локально](#клонирование-и-запуск-локально)
     - [Запуск на сервере по SSH](#запуск-на-сервере-по-ssh)
   - [Контакты](#контакты)
+  - [Важно для запуска на сервере](#важно-для-запуска-на-сервере)
+    - [Требования к Docker](#требования-к-docker)
+    - [Как установить buildx и docker-compose (Ubuntu)](#как-установить-buildx-и-docker-compose-ubuntu)
+    - [Как избежать лимита Docker Hub](#как-избежать-лимита-docker-hub)
+    - [Что делать при ошибке legacy builder](#что-делать-при-ошибке-legacy-builder)
+    - [Полезные ссылки](#полезные-ссылки)
 
 ---
 
@@ -223,3 +229,54 @@ python manage.py runserver 0.0.0.0:80
 ## Контакты
 
 Для вопросов и поддержки — пишите [ваш email или Telegram]. 
+
+---
+
+## Важно для запуска на сервере
+
+### Требования к Docker
+- Docker должен поддерживать buildx и buildkit (современная сборка образов)
+- Должен быть установлен docker-compose (или docker compose)
+
+### Как установить buildx и docker-compose (Ubuntu)
+
+```bash
+sudo apt update
+sudo apt install docker-buildx-plugin docker-compose
+```
+
+Проверьте, что buildx установлен:
+```bash
+docker buildx version
+```
+
+Если команда не найдена — следуйте официальной инструкции: https://docs.docker.com/go/buildx/
+
+### Как избежать лимита Docker Hub
+
+Docker Hub ограничивает количество скачиваний образов для неавторизованных пользователей. Чтобы избежать ошибки:
+
+```
+toomanyrequests: You have reached your unauthenticated pull rate limit.
+```
+
+**Выполните на сервере:**
+```bash
+docker login -u <ваш_логин>
+```
+Введите свой логин и пароль от Docker Hub. Если нет аккаунта — зарегистрируйтесь на https://hub.docker.com/
+
+### Что делать при ошибке legacy builder
+
+Если видите ошибку:
+```
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/
+```
+
+- Установите buildx (см. выше)
+- После этого Docker будет использовать современный BuildKit для сборки образов
+
+### Полезные ссылки
+- [Docker Buildx (официальная документация)](https://docs.docker.com/go/buildx/)
+- [Docker Compose (официальная документация)](https://docs.docker.com/compose/install/)
+- [Docker Hub](https://hub.docker.com/) 
