@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+
+# Django
+*.log
+*.pot
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+*.sqlite
+local_settings.py
+.env
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Docker
+*.pid
+
+# Node
+node_modules/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+
+# Media/uploads
+media/
+archives/
+
+# Student projects (загруженные работы)
+student_projects/*/db.sqlite3
+student_projects/*/backend/__pycache__/
+student_projects/*/backend/*.pyc
+student_projects/*/backend/*.pyo
+student_projects/*/backend/*.pyd
+student_projects/*/backend/*.egg-info/
+student_projects/*/frontend/node_modules/
+student_projects/*/frontend/.env
+student_projects/*/frontend/dist/
+student_projects/*/frontend/.next/
+student_projects/*/frontend/.cache/
+student_projects/*/frontend/.DS_Store
+student_projects/*/frontend/.vite/
+student_projects/*/frontend/.eslintcache
+student_projects/*/frontend/yarn.lock
+student_projects/*/frontend/package-lock.json
+student_projects/*/frontend/npm-debug.log
+student_projects/*/frontend/.npm/
+student_projects/*/frontend/.turbo/
+
+# System
+Thumbs.db
+
+# Ignore compiled static files
+staticfiles/
+
+# Ignore migrations if needed
+# */migrations/*.pyc
+# */migrations/*.pyo
+# */migrations/*.pyd 

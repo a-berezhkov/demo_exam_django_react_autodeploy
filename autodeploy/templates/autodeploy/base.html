@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Автоматическое развертывание проектов</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; }
+        .container { max-width: 900px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px #0001; }
+        h1 { text-align: center; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 15px; text-decoration: none; color: #007bff; }
+        nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="{% url 'upload_project' %}">Загрузка проекта</a>
+        <a href="{% url 'all_projects' %}">Все проекты</a>
+    </nav>
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html> 

@@ -1,0 +1,52 @@
+{% extends 'autodeploy/base.html' %}
+{% block content %}
+<h1>Все проекты</h1>
+<form method="get" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-end;">
+    <div>
+        <label for="fio">Поиск по ФИО:</label>
+        <input type="text" id="fio" name="fio" value="{{ fio_query }}" placeholder="Введите ФИО">
+    </div>
+    <div>
+        <label for="group">Группа:</label>
+        <select id="group" name="group">
+            <option value="">Все</option>
+            {% for group in groups %}
+                <option value="{{ group.id }}" {% if group_id|add:'' == group.id|stringformat:'s' %}selected{% endif %}>{{ group.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit">Найти</button>
+</form>
+<table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th>ФИО</th>
+            <th>Группа</th>
+            <th>Дата/время загрузки</th>
+            <th>Frontend</th>
+            <th>Backend</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for project in projects %}
+        <tr>
+            <td>{{ project.student.full_name }}</td>
+            <td>{{ project.student.group.name }}</td>
+            <td>{{ project.uploaded_at|date:'d.m.Y H:i' }}</td>
+            <td>
+                {% if project.frontend_url %}
+                    <a href="{{ project.frontend_url }}" target="_blank">Frontend</a>
+                {% else %}-{% endif %}
+            </td>
+            <td>
+                {% if project.backend_url %}
+                    <a href="{{ project.backend_url }}" target="_blank">Backend</a>
+                {% else %}-{% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;">Нет проектов</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 

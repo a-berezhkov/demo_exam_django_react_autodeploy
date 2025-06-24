@@ -1,0 +1,118 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Загрузка архива проекта</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; }
+        .container { max-width: 500px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px #0001; }
+        h1 { text-align: center; }
+        .messages { margin-bottom: 20px; }
+        .messages li { color: #b00; }
+        form > div { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Загрузка архива проекта</h1>
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div>
+            {{ form.full_name.label_tag }}
+            {{ form.full_name }}
+        </div>
+        <div>
+            {{ form.group.label_tag }}
+            {{ form.group }}
+        </div>
+        <div>
+            {{ form.archive.label_tag }}
+            {{ form.archive }}
+        </div>
+        <div style="margin-bottom: 20px; background: #f9f9f9; border: 1px solid #eee; padding: 12px; border-radius: 6px;">
+            <strong>Перед загрузкой архива обязательно проверьте и подтвердите все пункты:</strong>
+            <ul style="margin-top: 12px; list-style: none; padding-left: 0;">
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="api_prefix_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>API backend начинается с <code>/api</code></b> (например, <code>/api/books/</code>), <b>нет двойных слешей</b> и <b>нет слеша на конце</b>.<br>
+                            <span style="color:#888;">Пример: <code>/api/books/</code></span>
+                        </span>
+                    </label>
+                </li>
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="env_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            В папке <b>frontend</b> есть файл <code>.env</code> с переменной <code>VITE_URL</code>.<br>
+                            <span style="color:#888;">Пример .env:<br><code>VITE_URL=http://localhost:8100/api/</code></span>
+                        </span>
+                    </label>
+                </li>
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="no_hardcode_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>Нет хардкода путей к API во frontend</b> — все запросы используют <code>VITE_URL</code>.<br>
+                            <span style="color:#b00;">❌ Плохо:</span> <code>fetch('http://localhost:8000/api/books/')</code><br>
+                            <span style="color:#080;">✔ Хорошо:</span> <code>fetch(`${import.meta.env.VITE_URL}books/`)</code>
+                        </span>
+                    </label>
+                </li>
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="run_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>Frontend и backend запускаются локально</b> командами <code>npm run dev</code> и <code>python manage.py runserver</code> без ошибок.
+                        </span>
+                    </label>
+                </li>
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="structure_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>Структура архива соответствует требованиям</b>:<br>
+                            <span style="color:#888;">В корне архива или в одной подпапке обязательно есть <code>frontend/</code> и <code>backend/</code>.</span>
+                        </span>
+                    </label>
+                </li>
+                <li>
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="ports_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>Порты не захардкожены, не конфликтуют</b> — используются только переменные окружения, не фиксированные порты.
+                        </span>
+                    </label>
+                </li>
+            </ul>
+        </div>
+        <button type="submit">Загрузить</button>
+    </form>
+</div>
+</body>
+</html> 
