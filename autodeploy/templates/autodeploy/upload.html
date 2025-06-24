@@ -109,6 +109,17 @@
                         </span>
                     </label>
                 </li>
+                <li style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 18px; min-height: 48px;">
+                        <span style="display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <input type="checkbox" name="allowed_hosts_checked" required style="width: 20px; height: 20px;">
+                        </span>
+                        <span style="flex:1;">
+                            <b>В settings.py backend нет жёстко заданного ALLOWED_HOSTS, либо он не мешает автозамене</b> (<a href="/README.md" target="_blank">см. README</a>).<br>
+                            <span style="color:#888;">ALLOWED_HOSTS будет автоматически заменён на нужный IP при деплое.</span>
+                        </span>
+                    </label>
+                </li>
             </ul>
         </div>
         <button type="submit">Загрузить</button>

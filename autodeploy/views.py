@@ -159,9 +159,30 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     # Выделяем порты
     backend_port = get_free_port(BACKEND_PORT_START)
     frontend_port = get_free_port(FRONTEND_PORT_START)
+    # Получаем внешний IP из ALLOWED_HOSTS
+    external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
+    # Добавляем внешний IP в ALLOWED_HOSTS backend settings.py
+    backend_settings_path = os.path.join(project_dir, 'backend', 'config', 'settings.py')
+    if not os.path.exists(backend_settings_path):
+        backend_settings_path = os.path.join(project_dir, 'backend', 'settings.py')
+    if os.path.exists(backend_settings_path):
+        with open(backend_settings_path, 'r') as f:
+            content = f.read()
+        # Заменяем ALLOWED_HOSTS на нужный список
+        new_content, n = re.subn(
+            r'ALLOWED_HOSTS\s*=\s*\[.*?\]',
+            f"ALLOWED_HOSTS = ['{external_ip}', 'localhost', '127.0.0.1']",
+            content,
+            flags=re.DOTALL
+        )
+        if n == 0:
+            # Если ALLOWED_HOSTS не найден, добавим в конец файла
+            new_content = content + f"\nALLOWED_HOSTS = ['{external_ip}', 'localhost', '127.0.0.1']\n"
+        with open(backend_settings_path, 'w') as f:
+            f.write(new_content)
     # Создаём/обновляем .env во frontend с VITE_URL
     env_path = os.path.join(frontend_dir, '.env')
-    vite_url_line = f'VITE_URL=http://localhost:{backend_port}/api/\n'
+    vite_url_line = f'VITE_URL=http://{external_ip}:{backend_port}/api/\n'
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
             lines = f.readlines()
@@ -192,8 +213,8 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     # Сохраняем в БД
     project.backend_port = backend_port
     project.frontend_port = frontend_port
-    project.backend_url = f'http://localhost:{backend_port}/api/'
-    project.frontend_url = f'http://localhost:{frontend_port}/'
+    project.backend_url = f'http://{external_ip}:{backend_port}/api/'
+    project.frontend_url = f'http://{external_ip}:{frontend_port}/'
     project.container_id_backend = backend_id
     project.container_id_frontend = frontend_id
     project.status = 'running'

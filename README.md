@@ -22,6 +22,7 @@
     - [Как избежать лимита Docker Hub](#как-избежать-лимита-docker-hub)
     - [Что делать при ошибке legacy builder](#что-делать-при-ошибке-legacy-builder)
     - [Полезные ссылки](#полезные-ссылки)
+  - [Особенности автодеплоя](#особенности-автодеплоя)
 
 ---
 
@@ -280,3 +281,13 @@ DEPRECATED: The legacy builder is deprecated and will be removed in a future rel
 - [Docker Buildx (официальная документация)](https://docs.docker.com/go/buildx/)
 - [Docker Compose (официальная документация)](https://docs.docker.com/compose/install/)
 - [Docker Hub](https://hub.docker.com/) 
+
+---
+
+## Особенности автодеплоя
+
+- При загрузке и запуске архива проекта внешний IP сервера (например, 83.217.220.94) автоматически добавляется в ALLOWED_HOSTS файла settings.py внутри backend-проекта.
+- Это предотвращает ошибку DisallowedHost при обращении к backend по IP/порту.
+- Вам НЕ нужно вручную менять ALLOWED_HOSTS в settings.py — всё делается автоматически.
+- Если в settings.py уже есть ALLOWED_HOSTS, он будет заменён на нужный список: ['IP', 'localhost', '127.0.0.1'].
+- Если ALLOWED_HOSTS отсутствует, он будет добавлен в конец файла. 
