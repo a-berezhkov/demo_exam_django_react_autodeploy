@@ -111,6 +111,18 @@ def generate_docker_compose(project_dir, backend_port, frontend_port):
         yaml.dump(compose, f, default_flow_style=False, allow_unicode=True)
 
 
+def find_settings_file(backend_dir):
+    """
+    Рекурсивно ищет файл settings.py в директории backend.
+    Возвращает полный путь к файлу или None, если файл не найден.
+    """
+    for root, dirs, files in os.walk(backend_dir):
+        if 'settings.py' in files:
+            return os.path.join(root, 'settings.py')
+    
+    return None
+
+
 def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     os.makedirs(PROJECTS_ROOT, exist_ok=True)
     project_dir = os.path.join(PROJECTS_ROOT, str(project.id))
@@ -161,11 +173,11 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     frontend_port = get_free_port(FRONTEND_PORT_START)
     # Получаем внешний IP из ALLOWED_HOSTS
     external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
-    # Добавляем внешний IP в ALLOWED_HOSTS backend settings.py
-    backend_settings_path = os.path.join(project_dir, 'backend', 'config', 'settings.py')
-    if not os.path.exists(backend_settings_path):
-        backend_settings_path = os.path.join(project_dir, 'backend', 'settings.py')
-    if os.path.exists(backend_settings_path):
+    # Ищем файл settings.py в backend
+    backend_dir = os.path.join(project_dir, 'backend')
+    backend_settings_path = find_settings_file(backend_dir)
+    
+    if backend_settings_path and os.path.exists(backend_settings_path):
         with open(backend_settings_path, 'r') as f:
             content = f.read()
         # Заменяем ALLOWED_HOSTS на нужный список
