@@ -375,16 +375,46 @@ def manage_container(request, project_id):
                     project.status = 'error'
                 project.save()
             elif action == 'delete':
-                # Остановка и удаление контейнеров + очистка полей
-                subprocess.run(['docker-compose', 'down', '--volumes'], cwd=project_dir)
-                project.status = 'uploaded'
-                project.container_id_backend = None
-                project.container_id_frontend = None
-                project.backend_port = None
-                project.frontend_port = None
-                project.backend_url = None
-                project.frontend_url = None
-                project.save()
+                # Полное удаление проекта
+                try:
+                    # 1. Остановка контейнеров
+                    result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+                    
+                    # 2. Удаление образов (если контейнеры успешно остановлены)
+                    if result.returncode == 0:
+                        # Получаем имена образов из docker-compose.yml
+                        compose_path = project_dir / 'docker-compose.yml'
+                        if compose_path.exists():
+                            with open(compose_path, 'r') as f:
+                                compose_data = yaml.safe_load(f)
+                            
+                            # Удаляем образы для backend и frontend
+                            services = compose_data.get('services', {})
+                            for service_name in ['backend', 'frontend']:
+                                if service_name in services:
+                                    # Получаем имя образа или генерируем его
+                                    image_name = services[service_name].get('image')
+                                    if not image_name:
+                                        # Если image не указан, используем имя проекта
+                                        image_name = f"{project_dir.name}_{service_name}"
+                                    
+                                    # Удаляем образ
+                                    subprocess.run(['docker', 'rmi', '-f', image_name], 
+                                                 capture_output=True, text=True)
+                    
+                    # 3. Удаление файлов проекта
+                    if project_dir.exists():
+                        shutil.rmtree(project_dir)
+                    
+                    # 4. Удаление из базы данных
+                    project.delete()
+                    
+                except Exception as e:
+                    # Если что-то пошло не так, все равно удаляем из БД
+                    try:
+                        project.delete()
+                    except:
+                        pass
         except ProjectUpload.DoesNotExist:
             pass
     return redirect(reverse('all_projects'))
