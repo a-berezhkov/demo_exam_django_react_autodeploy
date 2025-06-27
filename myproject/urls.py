@@ -16,8 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from autodeploy.views import access_denied
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('autodeploy.urls')),
 ]
+
+# Обработчик ошибки доступа (403)
+handler403 = 'autodeploy.views.access_denied'

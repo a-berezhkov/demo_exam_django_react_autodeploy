@@ -16,7 +16,10 @@
 <div class="container">
     <nav>
         <a href="{% url 'upload_project' %}">Загрузка проекта</a>
-        <a href="{% url 'all_projects' %}">Все проекты</a>
+        {% if user.is_staff %}
+            <a href="{% url 'all_projects' %}">Все проекты</a>
+            <a href="{% url 'admin:index' %}">Админка</a>
+        {% endif %}
     </nav>
     {% block content %}{% endblock %}
 </div>

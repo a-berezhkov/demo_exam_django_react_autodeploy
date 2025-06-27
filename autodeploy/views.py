@@ -6,6 +6,8 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, Http404
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 import mimetypes
 
 import os
@@ -233,6 +235,17 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     project.save()
 
 
+def access_denied(request, exception):
+    """Обработчик ошибки доступа - перенаправляет на страницу загрузки"""
+    messages.warning(request, 'Доступ только для администраторов. Для управления проектами войдите в админку.')
+    return redirect('upload_project')
+
+
+def redirect_to_upload(request):
+    """Перенаправляет неавторизованных пользователей на страницу загрузки"""
+    return redirect('upload_project')
+
+
 def upload_project(request):
     if request.method == 'POST':
         form = ProjectUploadForm(request.POST, request.FILES)
@@ -244,6 +257,7 @@ def upload_project(request):
                 with transaction.atomic():
                     student, _ = Student.objects.get_or_create(full_name=full_name, group=group)
                     project = ProjectUpload.objects.create(student=student, archive=archive)
+                    
                     # Проверка архива
                     with tempfile.TemporaryDirectory() as tmpdir:
                         archive_path = project.archive.path
@@ -258,6 +272,7 @@ def upload_project(request):
                             project.save()
                             messages.error(request, 'Неподдерживаемый формат архива.')
                             return redirect('upload_project')
+                        
                         # Улучшенная проверка наличия папок
                         found, found_dirs = find_project_dirs(tmpdir)
                         if found:
@@ -275,13 +290,17 @@ def upload_project(request):
                                 project.status = 'error'
                                 project.save()
                                 messages.error(request, f'Ошибка запуска контейнеров: {e}')
+                                return redirect('upload_project')
                         else:
                             project.status = 'error'
+                            project.save()
                             messages.error(request, f'В архиве должны быть папки frontend и backend. Найдено: {found_dirs}')
-                        project.save()
-                    if project.status == 'uploaded':
-                        messages.success(request, 'Архив успешно загружен!')
-                        return redirect('upload_project')
+                            return redirect('upload_project')
+                    
+                    # Если дошли до сюда, значит проект успешно загружен
+                    messages.success(request, 'Архив успешно загружен!')
+                    return redirect('upload_project')
+                    
             except Exception as e:
                 messages.error(request, f'Ошибка загрузки: {e}')
     else:
@@ -289,6 +308,7 @@ def upload_project(request):
     return render(request, 'autodeploy/upload.html', {'form': form, 'messages': messages.get_messages(request)})
 
 
+@staff_member_required
 def all_projects(request):
     fio_query = request.GET.get('fio', '').strip()
     group_id = request.GET.get('group', '')
@@ -307,6 +327,7 @@ def all_projects(request):
     })
 
 
+@staff_member_required
 def download_archive(request, project_id):
     try:
         project = ProjectUpload.objects.get(id=project_id)
@@ -324,6 +345,7 @@ def download_archive(request, project_id):
 
 
 @csrf_exempt
+@staff_member_required
 def manage_container(request, project_id):
     if request.method == 'POST':
         action = request.POST.get('action')

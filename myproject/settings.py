@@ -77,6 +77,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 20,  # Таймаут для блокировок (секунды)
+            'check_same_thread': False,  # Разрешить доступ из разных потоков
+        },
     }
 }
 
