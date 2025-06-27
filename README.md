@@ -311,7 +311,21 @@ DEPRECATED: The legacy builder is deprecated and will be removed in a future rel
     Процесс продолжит работать после выхода из SSH.
   - **tmux** (или **screen**) — терминальный мультиплексор:
     ```bash
-    tmux
+    # Просмотр существующих сессий
+    tmux list-sessions
+    # или сокращенно:
+    tmux ls
+    
+    # Подключение к существующей сессии
+    tmux attach-session -t имя_сессии
+    # или сокращенно:
+    tmux a -t имя_сессии
+    
+    # Создание новой сессии
+    tmux new-session -s имя_сессии
+    # или сокращенно:
+    tmux new -s имя_сессии
+    
     # внутри tmux запускаешь свой сервер
     python manage.py runserver 0.0.0.0:8000
     # чтобы отсоединиться: Ctrl+B, затем D
