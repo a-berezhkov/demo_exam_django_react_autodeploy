@@ -327,12 +327,23 @@ def all_projects(request):
     if group_id:
         projects = projects.filter(student__group__id=group_id)
     projects = projects.order_by('-uploaded_at')
+    
+    # Статистика
+    total_projects = projects.count()
+    running_projects = projects.filter(status='running').count()
+    stopped_projects = projects.filter(status='stopped').count()
+    error_projects = projects.filter(status='error').count()
+    
     groups = Group.objects.all()
     return render(request, 'autodeploy/all_projects.html', {
         'projects': projects,
         'groups': groups,
         'fio_query': fio_query,
         'group_id': group_id,
+        'total_projects': total_projects,
+        'running_projects': running_projects,
+        'stopped_projects': stopped_projects,
+        'error_projects': error_projects,
     })
 
 
@@ -448,4 +459,117 @@ def manage_container(request, project_id):
                         pass
         except ProjectUpload.DoesNotExist:
             pass
+    return redirect(reverse('all_projects'))
+
+
+@csrf_exempt
+@staff_member_required
+def manage_all_containers(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        projects = ProjectUpload.objects.all()
+        
+        if action == 'stop_all':
+            # Остановка всех запущенных контейнеров
+            stopped_count = 0
+            for project in projects:
+                if project.status == 'running':
+                    try:
+                        project_dir = Path('student_projects') / str(project.id)
+                        if project_dir.exists():
+                            result = subprocess.run(['docker-compose', 'down'], 
+                                                  cwd=project_dir, capture_output=True, text=True)
+                            if result.returncode == 0:
+                                project.status = 'stopped'
+                                project.save()
+                                stopped_count += 1
+                    except Exception as e:
+                        print(f"Ошибка остановки проекта {project.id}: {e}")
+            
+            messages.success(request, f'Остановлено контейнеров: {stopped_count}')
+            
+        elif action == 'start_all':
+            # Запуск всех остановленных контейнеров
+            started_count = 0
+            for project in projects:
+                if project.status in ['stopped', 'uploaded']:
+                    try:
+                        project_dir = Path('student_projects') / str(project.id)
+                        if project_dir.exists():
+                            result = subprocess.run(['docker-compose', 'up', '-d'], 
+                                                  cwd=project_dir, capture_output=True, text=True)
+                            if result.returncode == 0:
+                                project.status = 'running'
+                                project.save()
+                                started_count += 1
+                    except Exception as e:
+                        print(f"Ошибка запуска проекта {project.id}: {e}")
+            
+            messages.success(request, f'Запущено контейнеров: {started_count}')
+            
+        elif action == 'delete_all':
+            # Удаление всех контейнеров и проектов
+            deleted_count = 0
+            for project in projects:
+                try:
+                    project_dir = Path('student_projects') / str(project.id)
+                    
+                    # Остановка контейнеров
+                    if project_dir.exists():
+                        subprocess.run(['docker-compose', 'down'], 
+                                     cwd=project_dir, capture_output=True, text=True)
+                        
+                        # Удаление образов
+                        try:
+                            compose_path = project_dir / 'docker-compose.yml'
+                            if compose_path.exists():
+                                with open(compose_path, 'r') as f:
+                                    compose_data = yaml.safe_load(f)
+                                
+                                services = compose_data.get('services', {})
+                                for service_name in ['backend', 'frontend']:
+                                    if service_name in services:
+                                        image_name = services[service_name].get('image')
+                                        if not image_name:
+                                            image_name = f"{project_dir.name}_{service_name}"
+                                        
+                                        subprocess.run(['docker', 'rmi', '-f', image_name], 
+                                                     capture_output=True, text=True)
+                        except Exception as e:
+                            print(f"Ошибка удаления образов проекта {project.id}: {e}")
+                        
+                        # Удаление файлов проекта
+                        shutil.rmtree(project_dir)
+                    
+                    # Удаление из базы данных
+                    project.delete()
+                    deleted_count += 1
+                    
+                except Exception as e:
+                    print(f"Ошибка удаления проекта {project.id}: {e}")
+                    # Если не удалось удалить файлы, все равно удаляем из БД
+                    try:
+                        project.delete()
+                        deleted_count += 1
+                    except:
+                        pass
+            
+            # Очистка неиспользуемых Docker ресурсов
+            try:
+                subprocess.run(['docker', 'system', 'prune', '-f'], capture_output=True, text=True)
+                subprocess.run(['docker', 'network', 'prune', '-f'], capture_output=True, text=True)
+            except Exception as e:
+                print(f"Ошибка очистки Docker ресурсов: {e}")
+            
+            messages.success(request, f'Удалено проектов: {deleted_count}. Docker ресурсы очищены.')
+        
+        elif action == 'cleanup_docker':
+            # Очистка неиспользуемых Docker ресурсов
+            try:
+                result = subprocess.run(['docker', 'system', 'prune', '-f'], capture_output=True, text=True)
+                network_result = subprocess.run(['docker', 'network', 'prune', '-f'], capture_output=True, text=True)
+                messages.success(request, 'Docker ресурсы очищены успешно.')
+            except Exception as e:
+                messages.error(request, f'Ошибка очистки Docker ресурсов: {e}')
+    
     return redirect(reverse('all_projects'))

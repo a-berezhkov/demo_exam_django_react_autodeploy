@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import upload_project, all_projects, download_archive, manage_container, redirect_to_upload
+from .views import upload_project, all_projects, download_archive, manage_container, redirect_to_upload, manage_all_containers
 
 urlpatterns = [
     path('', redirect_to_upload, name='home'),
@@ -7,4 +7,5 @@ urlpatterns = [
     path('projects/', all_projects, name='all_projects'),
     path('download-archive/<int:project_id>/', download_archive, name='download_archive'),
     path('manage-container/<int:project_id>/', manage_container, name='manage_container'),
+    path('manage-all-containers/', manage_all_containers, name='manage_all_containers'),
 ] 
