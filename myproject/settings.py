@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,10 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_b=^4%h6#1p31s1j!g7j7$!46neao8ue$vg8&tt!8d+1ci0!gz'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-_b=^4%h6#1p31s1j!g7j7$!46neao8ue$vg8&tt!8d+1ci0!gz')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = [ 'localhost', '127.0.0.1', "217.196.101.222"]
 
@@ -75,11 +80,14 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'autodeploy_db'),
+        'USER': os.getenv('DB_USER', 'slon'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'jojo2402'),
+        'HOST': os.getenv('DB_HOST', '217.196.101.222'),
+        'PORT': os.getenv('DB_PORT', '5432'),
         'OPTIONS': {
-            'timeout': 20,  # Таймаут для блокировок (секунды)
-            'check_same_thread': False,  # Разрешить доступ из разных потоков
+            'connect_timeout': 10,
         },
     }
 }

@@ -20,6 +20,12 @@ __pycache__/
 local_settings.py
 .env
 
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
 # VSCode
 .vscode/
 

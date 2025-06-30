@@ -7,6 +7,7 @@
   - [Описание](#описание)
   - [Требования](#требования)
   - [Установка и запуск локально](#установка-и-запуск-локально)
+  - [Настройка базы данных PostgreSQL](#настройка-базы-данных-postgresql)
   - [Требования к архиву для загрузки](#требования-к-архиву-для-загрузки)
   - [Пример .env для frontend](#пример-env-для-frontend)
   - [Запуск на удалённом сервере по SSH](#запуск-на-удалённом-сервере-по-ssh)
@@ -30,7 +31,7 @@
 ## Описание
 
 - **Backend:** Django + DRF (интерфейс на Django-шаблонах)
-- **База данных:** SQLite
+- **База данных:** PostgreSQL (с поддержкой переменных окружения)
 - **Docker:** для запуска проектов студентов (backend на DRF + frontend на React)
 - **Reverse Proxy:** локально — прямые порты, для удалённого сервера — настройка Nginx (см. ниже)
 - **Архивы:** хранятся локально
@@ -40,6 +41,7 @@
 ## Требования
 
 - Python 3.10+
+- PostgreSQL 12+
 - Docker и Docker Compose
 - Git
 - pip
@@ -65,20 +67,73 @@
    pip install -r requirements.txt
    ```
 
-4. **Выполните миграции:**
+4. **Настройте базу данных PostgreSQL** (см. раздел ниже)
+
+5. **Выполните миграции:**
    ```bash
    python manage.py migrate
    ```
 
-5. **Запустите сервер Django:**
+6. **Создайте суперпользователя:**
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+7. **Запустите сервер Django:**
    ```bash
    python manage.py runserver
    ```
 
-6. **Откройте в браузере:**
+8. **Откройте в браузере:**
    ```
    http://localhost:8000/
    ```
+
+---
+
+## Настройка базы данных PostgreSQL
+
+### 1. Создание файла .env
+
+Создайте файл `.env` в корне проекта:
+
+```env
+# Database Configuration
+DB_HOST=217.196.101.222
+DB_PORT=5432
+DB_NAME=autodeploy_db
+DB_USER=slon
+DB_PASSWORD=jojo2402
+
+# Django Configuration
+SECRET_KEY=django-insecure-_b=^4%h6#1p31s1j!g7j7$!46neao8ue$vg8&tt!8d+1ci0!gz
+DEBUG=True
+ALLOWED_HOSTS=83.217.220.94,localhost,127.0.0.1,5141353-cf45690,217.196.101.222
+```
+
+### 2. Инициализация базы данных
+
+```bash
+# Создайте базу данных PostgreSQL
+python init_db.py
+```
+
+### 3. Миграция данных из SQLite (если есть)
+
+```bash
+# Если у вас есть данные в SQLite, мигрируйте их в PostgreSQL
+python migrate_to_postgres.py
+```
+
+### 4. Выполнение миграций Django
+
+```bash
+# Создайте и примените миграции
+python manage.py makemigrations
+python manage.py migrate
+```
+
+Подробная инструкция: [POSTGRESQL_SETUP.md](POSTGRESQL_SETUP.md)
 
 ---
 
