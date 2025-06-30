@@ -369,94 +369,123 @@ def download_archive(request, project_id):
 def manage_container(request, project_id):
     if request.method == 'POST':
         action = request.POST.get('action')
+        
+        # Список контейнеров, которые нужно исключить из операций
+        excluded_containers = [
+            'my_postgres',  # PostgreSQL контейнер
+            'postgres',     # Любые postgres контейнеры
+            'mysql',        # MySQL контейнеры
+            'redis',        # Redis контейнеры
+            'nginx',        # Основной nginx
+            'adminer',      # Adminer
+            'phpmyadmin',   # phpMyAdmin
+        ]
+        
         try:
             project = ProjectUpload.objects.get(id=project_id)
             project_dir = Path('student_projects') / str(project.id)
-            if action == 'start':
-                # Запуск контейнеров
-                result = subprocess.run(['docker-compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
-                if result.returncode == 0:
-                    project.status = 'running'
-                    # Обновляем ссылки после успешного запуска
-                    try:
-                        # Читаем docker-compose.yml для получения портов
-                        compose_path = project_dir / 'docker-compose.yml'
-                        if compose_path.exists():
-                            with open(compose_path, 'r') as f:
-                                compose_data = yaml.safe_load(f)
-                            
-                            # Извлекаем порты из docker-compose.yml
-                            backend_ports = compose_data.get('services', {}).get('backend', {}).get('ports', [])
-                            frontend_ports = compose_data.get('services', {}).get('frontend', {}).get('ports', [])
-                            
-                            if backend_ports and frontend_ports:
-                                # Парсим порты (формат "8101:8000")
-                                backend_port = int(backend_ports[0].split(':')[0])
-                                frontend_port = int(frontend_ports[0].split(':')[0])
-                                
-                                # Получаем внешний IP
-                                external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
-                                
-                                # Обновляем поля проекта
-                                project.backend_port = backend_port
-                                project.frontend_port = frontend_port
-                                project.backend_url = f'http://{external_ip}:{backend_port}/api/'
-                                project.frontend_url = f'http://{external_ip}:{frontend_port}/'
-                    except Exception as e:
-                        # Если не удалось получить порты, оставляем как есть
-                        pass
-                else:
-                    project.status = 'error'
-                project.save()
-            elif action == 'stop':
-                # Остановка контейнеров
-                result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
-                if result.returncode == 0:
-                    project.status = 'stopped'
-                else:
-                    project.status = 'error'
-                project.save()
-            elif action == 'delete':
-                # Полное удаление проекта
-                try:
-                    # 1. Остановка контейнеров
-                    result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+            
+            # Проверяем, что контейнеры проекта не в списке исключений
+            should_manage = True
+            if project_dir.exists():
+                compose_path = project_dir / 'docker-compose.yml'
+                if compose_path.exists():
+                    with open(compose_path, 'r') as f:
+                        compose_data = yaml.safe_load(f)
                     
-                    # 2. Удаление образов (если контейнеры успешно остановлены)
+                    services = compose_data.get('services', {})
+                    for service_name in services:
+                        if any(excluded in service_name.lower() for excluded in excluded_containers):
+                            should_manage = False
+                            messages.warning(request, f'Проект {project_id} содержит системные контейнеры и не может быть изменен.')
+                            break
+            
+            if should_manage:
+                if action == 'start':
+                    # Запуск контейнеров
+                    result = subprocess.run(['docker-compose', 'up', '-d'], cwd=project_dir, capture_output=True, text=True)
                     if result.returncode == 0:
-                        # Получаем имена образов из docker-compose.yml
-                        compose_path = project_dir / 'docker-compose.yml'
-                        if compose_path.exists():
-                            with open(compose_path, 'r') as f:
-                                compose_data = yaml.safe_load(f)
-                            
-                            # Удаляем образы для backend и frontend
-                            services = compose_data.get('services', {})
-                            for service_name in ['backend', 'frontend']:
-                                if service_name in services:
-                                    # Получаем имя образа или генерируем его
-                                    image_name = services[service_name].get('image')
-                                    if not image_name:
-                                        # Если image не указан, используем имя проекта
-                                        image_name = f"{project_dir.name}_{service_name}"
+                        project.status = 'running'
+                        # Обновляем ссылки после успешного запуска
+                        try:
+                            # Читаем docker-compose.yml для получения портов
+                            compose_path = project_dir / 'docker-compose.yml'
+                            if compose_path.exists():
+                                with open(compose_path, 'r') as f:
+                                    compose_data = yaml.safe_load(f)
+                                
+                                # Извлекаем порты из docker-compose.yml
+                                backend_ports = compose_data.get('services', {}).get('backend', {}).get('ports', [])
+                                frontend_ports = compose_data.get('services', {}).get('frontend', {}).get('ports', [])
+                                
+                                if backend_ports and frontend_ports:
+                                    # Парсим порты (формат "8101:8000")
+                                    backend_port = int(backend_ports[0].split(':')[0])
+                                    frontend_port = int(frontend_ports[0].split(':')[0])
                                     
-                                    # Удаляем образ
-                                    subprocess.run(['docker', 'rmi', '-f', image_name], 
-                                                 capture_output=True, text=True)
-                    
-                    # 3. Удаление файлов проекта
-                    if project_dir.exists():
-                        shutil.rmtree(project_dir)
-                    
-                    # 4. Удаление из базы данных
-                    project.delete()
-                    
-                except Exception as e:
-                    # Если что-то пошло не так, все равно удаляем из БД
+                                    # Получаем внешний IP
+                                    external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
+                                    
+                                    # Обновляем поля проекта
+                                    project.backend_port = backend_port
+                                    project.frontend_port = frontend_port
+                                    project.backend_url = f'http://{external_ip}:{backend_port}/api/'
+                                    project.frontend_url = f'http://{external_ip}:{frontend_port}/'
+                        except Exception as e:
+                            # Если не удалось получить порты, оставляем как есть
+                            pass
+                    else:
+                        project.status = 'error'
+                    project.save()
+                elif action == 'stop':
+                    # Остановка контейнеров
+                    result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+                    if result.returncode == 0:
+                        project.status = 'stopped'
+                    else:
+                        project.status = 'error'
+                    project.save()
+                elif action == 'delete':
+                    # Полное удаление проекта
                     try:
+                        # 1. Остановка контейнеров
+                        result = subprocess.run(['docker-compose', 'down'], cwd=project_dir, capture_output=True, text=True)
+                        
+                        # 2. Удаление образов (если контейнеры успешно остановлены)
+                        if result.returncode == 0:
+                            # Получаем имена образов из docker-compose.yml
+                            compose_path = project_dir / 'docker-compose.yml'
+                            if compose_path.exists():
+                                with open(compose_path, 'r') as f:
+                                    compose_data = yaml.safe_load(f)
+                                
+                                # Удаляем образы для backend и frontend
+                                services = compose_data.get('services', {})
+                                for service_name in ['backend', 'frontend']:
+                                    if service_name in services:
+                                        # Получаем имя образа или генерируем его
+                                        image_name = services[service_name].get('image')
+                                        if not image_name:
+                                            # Если image не указан, используем имя проекта
+                                            image_name = f"{project_dir.name}_{service_name}"
+                                        
+                                        # Удаляем образ
+                                        subprocess.run(['docker', 'rmi', '-f', image_name], 
+                                                     capture_output=True, text=True)
+                        
+                        # 3. Удаление файлов проекта
+                        if project_dir.exists():
+                            shutil.rmtree(project_dir)
+                        
+                        # 4. Удаление из базы данных
                         project.delete()
-                    except:
-                        pass
+                        
+                    except Exception as e:
+                        # Если что-то пошло не так, все равно удаляем из БД
+                        try:
+                            project.delete()
+                        except:
+                            pass
         except ProjectUpload.DoesNotExist:
             pass
     return redirect(reverse('all_projects'))
@@ -469,6 +498,17 @@ def manage_all_containers(request):
         action = request.POST.get('action')
         projects = ProjectUpload.objects.all()
         
+        # Список контейнеров, которые нужно исключить из операций
+        excluded_containers = [
+            'my_postgres',  # PostgreSQL контейнер
+            'postgres',     # Любые postgres контейнеры
+            'mysql',        # MySQL контейнеры
+            'redis',        # Redis контейнеры
+            'nginx',        # Основной nginx
+            'adminer',      # Adminer
+            'phpmyadmin',   # phpMyAdmin
+        ]
+        
         if action == 'stop_all':
             # Остановка всех запущенных контейнеров
             stopped_count = 0
@@ -477,12 +517,33 @@ def manage_all_containers(request):
                     try:
                         project_dir = Path('student_projects') / str(project.id)
                         if project_dir.exists():
-                            result = subprocess.run(['docker-compose', 'down'], 
-                                                  cwd=project_dir, capture_output=True, text=True)
-                            if result.returncode == 0:
-                                project.status = 'stopped'
-                                project.save()
-                                stopped_count += 1
+                            # Проверяем, что контейнеры проекта не в списке исключений
+                            compose_path = project_dir / 'docker-compose.yml'
+                            if compose_path.exists():
+                                with open(compose_path, 'r') as f:
+                                    compose_data = yaml.safe_load(f)
+                                
+                                # Проверяем имена сервисов
+                                services = compose_data.get('services', {})
+                                should_stop = True
+                                
+                                for service_name in services:
+                                    # Проверяем, не является ли сервис исключенным
+                                    if any(excluded in service_name.lower() for excluded in excluded_containers):
+                                        should_stop = False
+                                        break
+                                
+                                if should_stop:
+                                    result = subprocess.run(['docker-compose', 'down'], 
+                                                          cwd=project_dir, capture_output=True, text=True)
+                                    if result.returncode == 0:
+                                        project.status = 'stopped'
+                                        project.save()
+                                        stopped_count += 1
+                                    else:
+                                        print(f"Ошибка остановки проекта {project.id}: {result.stderr}")
+                                else:
+                                    print(f"Пропущен проект {project.id} - содержит исключенные контейнеры")
                     except Exception as e:
                         print(f"Ошибка остановки проекта {project.id}: {e}")
             
@@ -514,36 +575,52 @@ def manage_all_containers(request):
                 try:
                     project_dir = Path('student_projects') / str(project.id)
                     
-                    # Остановка контейнеров
+                    # Проверяем, что контейнеры проекта не в списке исключений
+                    should_delete = True
                     if project_dir.exists():
-                        subprocess.run(['docker-compose', 'down'], 
-                                     cwd=project_dir, capture_output=True, text=True)
-                        
-                        # Удаление образов
-                        try:
-                            compose_path = project_dir / 'docker-compose.yml'
-                            if compose_path.exists():
-                                with open(compose_path, 'r') as f:
-                                    compose_data = yaml.safe_load(f)
-                                
-                                services = compose_data.get('services', {})
-                                for service_name in ['backend', 'frontend']:
-                                    if service_name in services:
-                                        image_name = services[service_name].get('image')
-                                        if not image_name:
-                                            image_name = f"{project_dir.name}_{service_name}"
-                                        
-                                        subprocess.run(['docker', 'rmi', '-f', image_name], 
-                                                     capture_output=True, text=True)
-                        except Exception as e:
-                            print(f"Ошибка удаления образов проекта {project.id}: {e}")
-                        
-                        # Удаление файлов проекта
-                        shutil.rmtree(project_dir)
+                        compose_path = project_dir / 'docker-compose.yml'
+                        if compose_path.exists():
+                            with open(compose_path, 'r') as f:
+                                compose_data = yaml.safe_load(f)
+                            
+                            services = compose_data.get('services', {})
+                            for service_name in services:
+                                if any(excluded in service_name.lower() for excluded in excluded_containers):
+                                    should_delete = False
+                                    print(f"Пропущен проект {project.id} - содержит исключенные контейнеры")
+                                    break
                     
-                    # Удаление из базы данных
-                    project.delete()
-                    deleted_count += 1
+                    if should_delete:
+                        # Остановка контейнеров
+                        if project_dir.exists():
+                            subprocess.run(['docker-compose', 'down'], 
+                                         cwd=project_dir, capture_output=True, text=True)
+                            
+                            # Удаление образов
+                            try:
+                                compose_path = project_dir / 'docker-compose.yml'
+                                if compose_path.exists():
+                                    with open(compose_path, 'r') as f:
+                                        compose_data = yaml.safe_load(f)
+                                    
+                                    services = compose_data.get('services', {})
+                                    for service_name in ['backend', 'frontend']:
+                                        if service_name in services:
+                                            image_name = services[service_name].get('image')
+                                            if not image_name:
+                                                image_name = f"{project_dir.name}_{service_name}"
+                                            
+                                            subprocess.run(['docker', 'rmi', '-f', image_name], 
+                                                         capture_output=True, text=True)
+                            except Exception as e:
+                                print(f"Ошибка удаления образов проекта {project.id}: {e}")
+                            
+                            # Удаление файлов проекта
+                            shutil.rmtree(project_dir)
+                        
+                        # Удаление из базы данных
+                        project.delete()
+                        deleted_count += 1
                     
                 except Exception as e:
                     print(f"Ошибка удаления проекта {project.id}: {e}")
@@ -554,21 +631,45 @@ def manage_all_containers(request):
                     except:
                         pass
             
-            # Очистка неиспользуемых Docker ресурсов
+            # Очистка неиспользуемых Docker ресурсов (кроме исключенных)
             try:
+                # Получаем список всех контейнеров
+                result = subprocess.run(['docker', 'ps', '-a', '--format', '{{.Names}}'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    containers = result.stdout.strip().split('\n')
+                    
+                    # Удаляем только контейнеры, не входящие в список исключений
+                    for container in containers:
+                        if container and not any(excluded in container.lower() for excluded in excluded_containers):
+                            subprocess.run(['docker', 'rm', '-f', container], capture_output=True, text=True)
+                
+                # Очищаем неиспользуемые образы и сети
                 subprocess.run(['docker', 'system', 'prune', '-f'], capture_output=True, text=True)
                 subprocess.run(['docker', 'network', 'prune', '-f'], capture_output=True, text=True)
             except Exception as e:
                 print(f"Ошибка очистки Docker ресурсов: {e}")
             
-            messages.success(request, f'Удалено проектов: {deleted_count}. Docker ресурсы очищены.')
+            messages.success(request, f'Удалено проектов: {deleted_count}. Docker ресурсы очищены (исключая системные контейнеры).')
         
         elif action == 'cleanup_docker':
-            # Очистка неиспользуемых Docker ресурсов
+            # Очистка неиспользуемых Docker ресурсов (кроме исключенных)
             try:
-                result = subprocess.run(['docker', 'system', 'prune', '-f'], capture_output=True, text=True)
-                network_result = subprocess.run(['docker', 'network', 'prune', '-f'], capture_output=True, text=True)
-                messages.success(request, 'Docker ресурсы очищены успешно.')
+                # Получаем список всех контейнеров
+                result = subprocess.run(['docker', 'ps', '-a', '--format', '{{.Names}}'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    containers = result.stdout.strip().split('\n')
+                    
+                    # Удаляем только контейнеры, не входящие в список исключений
+                    for container in containers:
+                        if container and not any(excluded in container.lower() for excluded in excluded_containers):
+                            subprocess.run(['docker', 'rm', '-f', container], capture_output=True, text=True)
+                
+                # Очищаем неиспользуемые образы и сети
+                subprocess.run(['docker', 'system', 'prune', '-f'], capture_output=True, text=True)
+                subprocess.run(['docker', 'network', 'prune', '-f'], capture_output=True, text=True)
+                messages.success(request, 'Docker ресурсы очищены успешно (исключая системные контейнеры).')
             except Exception as e:
                 messages.error(request, f'Ошибка очистки Docker ресурсов: {e}')
     
