@@ -90,7 +90,7 @@ def generate_docker_compose(project_dir, backend_port, frontend_port):
                 'command': 'python manage.py runserver 0.0.0.0:8000',
                 'ports': [f'{backend_port}:8000'],
                 'networks': {
-                    'default': {
+                    'projects_network': {
                         'aliases': ['localhost']
                     }
                 },
@@ -101,11 +101,14 @@ def generate_docker_compose(project_dir, backend_port, frontend_port):
                 'command': 'npx vite --host',
                 'ports': [f'{frontend_port}:5173'],
                 'environment': [f'VITE_URL=http://localhost:{backend_port}/api/'],
+                'networks': {
+                    'projects_network': {}
+                },
             },
         },
         'networks': {
-            'default': {
-                'driver': 'bridge'
+            'projects_network': {
+                'external': True  # Используем внешнюю сеть
             }
         }
     }
@@ -213,6 +216,12 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     else:
         with open(env_path, 'w') as f:
             f.write(vite_url_line)
+    # Создаем общую сеть, если её нет
+    try:
+        subprocess.run(['docker', 'network', 'create', '--subnet=172.20.0.0/16', '--gateway=172.20.0.1', 'projects_network'], 
+                      capture_output=True, text=True)
+    except:
+        pass  # Сеть уже существует
     # Генерируем docker-compose.yml
     generate_docker_compose(project_dir, backend_port, frontend_port)
     # Запускаем контейнеры
