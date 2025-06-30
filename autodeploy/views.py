@@ -199,7 +199,7 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
             f.write(new_content)
     # Создаём/обновляем .env во frontend с VITE_URL
     env_path = os.path.join(frontend_dir, '.env')
-    vite_url_line = f'VITE_URL=http://{external_ip}:{backend_port}/api/\n'
+    vite_url_line = f'VITE_URL=http://217.196.101.222:{backend_port}/api/\n'
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
             lines = f.readlines()
