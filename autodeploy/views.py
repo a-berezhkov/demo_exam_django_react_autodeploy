@@ -70,12 +70,25 @@ def find_project_dirs(root_path):
     return False, dirs
 
 
-def get_free_port(start_port):
-    port = start_port
+def get_next_free_port(start_port, port_type):
+    """Назначает следующий за максимальным портом, который уже используется в БД, и проверяет его реальную доступность на хосте."""
+    from .models import ProjectUpload
+    used_ports = set()
+    if port_type == 'backend':
+        used_ports = set(ProjectUpload.objects.exclude(backend_port=None).values_list('backend_port', flat=True))
+    elif port_type == 'frontend':
+        used_ports = set(ProjectUpload.objects.exclude(frontend_port=None).values_list('frontend_port', flat=True))
+    max_port = max(used_ports) if used_ports else start_port - 1
+    port = max_port + 1
     while port < 65535:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(('localhost', port)) != 0:
-                return port
+        if port not in used_ports:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('localhost', port))
+                    s.close()
+                    return port
+            except OSError:
+                pass
         port += 1
     raise RuntimeError('Нет свободных портов')
 
@@ -173,9 +186,9 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     vite_config_mjs = os.path.join(frontend_dir, 'vite.config.mjs')
     if os.path.exists(vite_config_js):
         os.rename(vite_config_js, vite_config_mjs)
-    # Выделяем порты
-    backend_port = get_free_port(BACKEND_PORT_START)
-    frontend_port = get_free_port(FRONTEND_PORT_START)
+    # Выделяем порты с учетом БД и реальной занятости, начиная с максимального
+    backend_port = get_next_free_port(BACKEND_PORT_START, 'backend')
+    frontend_port = get_next_free_port(FRONTEND_PORT_START, 'frontend')
     # Получаем внешний IP из ALLOWED_HOSTS
     external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
     # Ищем файл settings.py в backend
