@@ -114,6 +114,12 @@ def generate_docker_compose(project_dir, backend_port, frontend_port):
                 'command': 'npx vite --host',
                 'ports': [f'{frontend_port}:5173'],
                 'environment': [f'VITE_URL=http://217.196.101.222:{backend_port}/api/'],
+                 'ulimits': {
+                    'nofile': {
+                        'soft': 65536,
+                        'hard': 65536
+                    }
+                },
                 'networks': {
                     'projects_network': {}
                 },
