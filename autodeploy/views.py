@@ -52,6 +52,7 @@ REQUIREMENTS_TXT = '''\
 django
 djangorestframework
 django-cors-headers
+Pillow
 '''
 
 def get_and_assign_port(project, port_type, start_port):
