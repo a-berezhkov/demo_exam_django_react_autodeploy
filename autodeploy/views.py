@@ -228,8 +228,8 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     if os.path.exists(vite_config_js):
         os.rename(vite_config_js, vite_config_mjs)
     # Выделяем порты с учетом БД и реальной занятости, начиная с максимального
-    backend_port = get_and_assign_port(BACKEND_PORT_START, 'backend')
-    frontend_port = get_and_assign_port(FRONTEND_PORT_START, 'frontend')
+    backend_port = get_and_assign_port(project, 'backend', BACKEND_PORT_START)
+    frontend_port = get_and_assign_port(project, 'frontend', FRONTEND_PORT_START)
     # Получаем внешний IP из ALLOWED_HOSTS
     external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
     # Ищем файл settings.py в backend
