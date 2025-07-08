@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from .forms import ProjectUploadForm
 from .models import Student, ProjectUpload, Group
 from django.contrib import messages
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse, Http404
 from django.conf import settings
@@ -53,6 +53,41 @@ django
 djangorestframework
 django-cors-headers
 '''
+
+def get_and_assign_port(project, port_type, start_port):
+    from .models import ProjectUpload
+    for _ in range(5):  # 5 попыток
+        try:
+            with transaction.atomic():
+                # Блокируем строки с портами
+                if port_type == 'backend':
+                    used_ports = set(ProjectUpload.objects.select_for_update().exclude(backend_port=None).values_list('backend_port', flat=True))
+                else:
+                    used_ports = set(ProjectUpload.objects.select_for_update().exclude(frontend_port=None).values_list('frontend_port', flat=True))
+                max_port = max(used_ports) if used_ports else start_port - 1
+                port = max_port + 1
+                # Проверяем реальную доступность порта на хосте
+                import socket
+                while port < 65535:
+                    if port not in used_ports:
+                        try:
+                            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                                s.bind(('localhost', port))
+                                s.close()
+                                # Назначаем порт и сохраняем проект
+                                if port_type == 'backend':
+                                    project.backend_port = port
+                                else:
+                                    project.frontend_port = port
+                                project.save()
+                                return port
+                        except OSError:
+                            pass
+                    port += 1
+                raise RuntimeError('Нет свободных портов')
+        except IntegrityError:
+            continue
+    raise RuntimeError('Не удалось назначить уникальный порт')
 
 
 def find_project_dirs(root_path):
@@ -193,8 +228,8 @@ def setup_and_run_containers(project: ProjectUpload, tmpdir: str):
     if os.path.exists(vite_config_js):
         os.rename(vite_config_js, vite_config_mjs)
     # Выделяем порты с учетом БД и реальной занятости, начиная с максимального
-    backend_port = get_next_free_port(BACKEND_PORT_START, 'backend')
-    frontend_port = get_next_free_port(FRONTEND_PORT_START, 'frontend')
+    backend_port = get_and_assign_port(BACKEND_PORT_START, 'backend')
+    frontend_port = get_and_assign_port(FRONTEND_PORT_START, 'frontend')
     # Получаем внешний IP из ALLOWED_HOSTS
     external_ip = next((host for host in settings.ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']), 'localhost')
     # Ищем файл settings.py в backend
